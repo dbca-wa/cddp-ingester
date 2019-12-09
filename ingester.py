@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import logging
-import multiprocessing
+from multiprocessing import Pool, Value
 import os
 import subprocess
 import sys
@@ -15,21 +15,23 @@ formatter = logging.Formatter('%(asctime)s | %(message)s')
 handler.setFormatter(formatter)
 LOGGER.addHandler(handler)
 
+
+# Init a counter variable.
+COUNTER = Value('i', 0)
+
+
 # Development environment: define variables in .env
 dot_env = os.path.join(os.getcwd(), '.env')
 if os.path.exists(dot_env):
     load_dotenv()
 
 
-def parse_cddp(cddp_path=None):
+def parse_cddp(cddp_path):
     '''This function expects the CDDP filepath to be passed in
     (e.g. /mnt/GIS-CALM/GIS1-Corporate/Data/GDB), in order to walk the path and locate
     file geodatabases for copying to the database.
     Returns a list of tuples containing (path, layer_name) pairs.
     '''
-    if not cddp_path:
-        # Assume that this path set via an environment variable if not explicitly passed in.
-        cddp_path = os.getenv('CDDP_PATH')
 
     gdb_paths = []
     for i in os.walk(cddp_path):
@@ -87,7 +89,7 @@ def ingest_layer(data):
     if b'COPY statement failed' in result and b'type Multi Surface' in result:
         LOGGER.warning('Copy statement failed, geometry type Multi Surface, trying explicit geom type')
         # Manually set the geometry type to MULTIPOLYGON:
-        cmd = 'ogr2ogr -overwrite -f -nlt MULTIPOLYGON PostgreSQL PG:"{}" {} {}'.format(
+        cmd = 'ogr2ogr -overwrite -nlt MULTIPOLYGON -f PostgreSQL PG:"{}" {} {}'.format(
             pg_string, file_gdb, layer_name)
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
@@ -98,7 +100,7 @@ def ingest_layer(data):
     elif b'COPY statement failed' in result and b'type Multi Curve' in result:
         LOGGER.warning('Copy statement failed, geometry type Multi Curve, trying explicit geom type')
         # Manually set the geometry type to MULTILINESTRING:
-        cmd = 'ogr2ogr -overwrite -f -nlt MULTILINESTRING PostgreSQL PG:"{}" {} {}'.format(
+        cmd = 'ogr2ogr -overwrite -nlt MULTILINESTRING -f PostgreSQL PG:"{}" {} {}'.format(
             pg_string, file_gdb, layer_name)
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
@@ -107,15 +109,24 @@ def ingest_layer(data):
             LOGGER.info(e.cmd)
             return
 
+    global COUNTER  # Couldn't work out how to do this without using a global var :|
+    with COUNTER.get_lock():
+        COUNTER.value += 1
     LOGGER.info('Layer {} completed'.format(layer_name))
 
 
-def mp_handler(data):
+def mp_handler(cddp_path=None):
+    if not cddp_path:
+        # Assume that this path set via an environment variable if not explicitly passed in.
+        cddp_path = os.getenv('CDDP_PATH')
+
     # Use a multiprocessing Pool to ingest datasets in parallel.
-    p = multiprocessing.Pool(4)
-    p.map(ingest_layer, data)
+    datasets = parse_cddp(cddp_path)
+    LOGGER.info('{} layers scheduled for copying from file GDB'.format(len(datasets)))
+    p = Pool(processes=4)
+    p.map(ingest_layer, datasets)
+    LOGGER.info('{}/{} layers successfully copied'.format(COUNTER.value, len(datasets)))
 
 
 if __name__ == "__main__":
-    data = parse_cddp()
-    mp_handler(data)
+    mp_handler()

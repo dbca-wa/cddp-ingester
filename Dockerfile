@@ -6,6 +6,7 @@ RUN apt-get update -y \
   && rm -rf /var/lib/apt/lists/* \
   && pip install --upgrade pip
 WORKDIR /app
-COPY ingester.py requirements.txt ./
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+COPY ingester.py ./
 CMD ["python", "ingester.py"]
