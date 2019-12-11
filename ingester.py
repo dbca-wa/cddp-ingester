@@ -11,7 +11,7 @@ LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s | %(message)s')
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
 handler.setFormatter(formatter)
 LOGGER.addHandler(handler)
 
@@ -45,9 +45,8 @@ def parse_cddp(cddp_path):
     for file_gdb in gdb_paths:
         try:
             gdb_layers = subprocess.check_output('ogrinfo -ro -so -q {}'.format(file_gdb), shell=True)
-        except subprocess.CalledProcessError as e:
-            LOGGER.exception('ERROR: ogrinfo step failed for {}'.format(file_gdb))
-            LOGGER.info(e.cmd)
+        except subprocess.CalledProcessError:
+            LOGGER.exception('ogrinfo step failed for {}'.format(file_gdb))
             continue
 
         layers = gdb_layers.splitlines()
@@ -76,9 +75,8 @@ def ingest_layer(data):
     try:
         cmd = ogr2ogr_cmd.format(pg_string=pg_string, file_gdb=file_gdb, layer_name=layer_name)
         result = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-    except subprocess.CalledProcessError as e:
-        LOGGER.exception('ERROR: ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
-        LOGGER.info(e.cmd)
+    except subprocess.CalledProcessError:
+        LOGGER.exception('ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
         return
 
     # NONSTANDARD GEOMETRY TYPE HANDLING
@@ -93,9 +91,8 @@ def ingest_layer(data):
             pg_string, file_gdb, layer_name)
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            LOGGER.exception('ERROR: ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
-            LOGGER.info(e.cmd)
+        except subprocess.CalledProcessError:
+            LOGGER.exception('ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
             return
     elif b'COPY statement failed' in result and b'type Multi Curve' in result:
         LOGGER.warning('Copy statement failed, geometry type Multi Curve, trying explicit geom type')
@@ -104,9 +101,8 @@ def ingest_layer(data):
             pg_string, file_gdb, layer_name)
         try:
             subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            LOGGER.exception('ERROR: ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
-            LOGGER.info(e.cmd)
+        except subprocess.CalledProcessError:
+            LOGGER.exception('ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
             return
 
     global COUNTER  # Couldn't work out how to do this without using a global var :|
