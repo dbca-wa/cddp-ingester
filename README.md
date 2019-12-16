@@ -22,6 +22,11 @@ containing the following:
     DATABASE_USERNAME="database@username"
     DATABASE_PASSWORD="password"
     DATABASE_NAME="database_name"
+    GEOSERVER_URL="https://geoserver.url"
+    GEOSERVER_USERNAME="username"
+    GEOSERVER_PASSWORD="password"
+    GEOSERVER_WORKSPACE="workspace"
+    GEOSERVER_DATASTORE="datastore"
 
 # Running
 
