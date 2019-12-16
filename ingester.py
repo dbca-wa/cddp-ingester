@@ -5,12 +5,14 @@ import os
 import subprocess
 import sys
 
+from utils import get_available_layers, publish_layer
+
 
 # Configure logging.
 LOGGER = logging.getLogger()
-LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
 handler.setFormatter(formatter)
 LOGGER.addHandler(handler)
@@ -112,17 +114,40 @@ def ingest_layer(data):
 
 
 def mp_handler(cddp_path=None):
+    """Multiprocessing handler to import file GDBs from the mounted CDDP volume.
+    """
     if not cddp_path:
         # Assume that this path set via an environment variable if not explicitly passed in.
         cddp_path = os.getenv('CDDP_PATH')
 
-    # Use a multiprocessing Pool to ingest datasets in parallel.
     datasets = parse_cddp(cddp_path)
     LOGGER.info('{} layers scheduled for copying from file GDB'.format(len(datasets)))
+
+    # Use a multiprocessing Pool to ingest datasets in parallel.
     p = Pool(processes=4)
     p.map(ingest_layer, datasets)
     LOGGER.info('{}/{} layers successfully copied'.format(COUNTER.value, len(datasets)))
 
 
+def publish_layers():
+    """Function to check if any new layers are present and can be published.
+    """
+    workspace = os.getenv('GEOSERVER_WORKSPACE')
+    datastore = os.getenv('GEOSERVER_DATASTORE')
+    blacklist = ['pg_buffercache', 'pg_stat_statements']  # TODO: don't hardcode this.
+    LOGGER.info('Checking for any new layers to publish')
+    layers = get_available_layers(workspace, datastore)
+
+    for layer in layers:
+        if layer not in blacklist:
+            try:
+                publish_layer(workspace, datastore, layer)
+                LOGGER.info('Published layer {}'.format(layer))
+            except:
+                LOGGER.exception('Publish layer failed for {}'.format(layer))
+                continue
+
+
 if __name__ == "__main__":
     mp_handler()
+    publish_layers()
