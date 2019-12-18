@@ -1,23 +1,13 @@
 from dotenv import load_dotenv
-import logging
 from multiprocessing import Pool, Value
 import os
 import subprocess
-import sys
 
-from utils import get_available_layers, publish_layer
+from utils import logger_setup, parse_cddp, get_available_layers, publish_layer
 
 
 # Configure logging.
-LOGGER = logging.getLogger()
-LOGGER.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-handler.setFormatter(formatter)
-LOGGER.addHandler(handler)
-
-
+LOGGER = logger_setup()
 # Init a counter variable.
 COUNTER = Value('i', 0)
 
@@ -26,38 +16,6 @@ COUNTER = Value('i', 0)
 dot_env = os.path.join(os.getcwd(), '.env')
 if os.path.exists(dot_env):
     load_dotenv()
-
-
-def parse_cddp(cddp_path):
-    '''This function expects the CDDP filepath to be passed in
-    (e.g. /mnt/GIS-CALM/GIS1-Corporate/Data/GDB), in order to walk the path and locate
-    file geodatabases for copying to the database.
-    Returns a list of tuples containing (path, layer_name) pairs.
-    '''
-
-    gdb_paths = []
-    for i in os.walk(cddp_path):
-        if '/old/' in i[0]:  # Skip the 'old' subdirectories.
-            continue
-        if i[0].endswith('.gdb'):
-            gdb_paths.append(i[0])
-
-    datasets = []
-
-    for file_gdb in gdb_paths:
-        try:
-            gdb_layers = subprocess.check_output('ogrinfo -ro -so -q {}'.format(file_gdb), shell=True)
-        except subprocess.CalledProcessError:
-            LOGGER.exception('ogrinfo step failed for {}'.format(file_gdb))
-            continue
-
-        layers = gdb_layers.splitlines()
-
-        for layer in layers:
-            layer_name = layer.split()[1].decode()
-            datasets.append((file_gdb, layer_name))
-
-    return datasets
 
 
 def ingest_layer(data):
@@ -120,7 +78,7 @@ def mp_handler(cddp_path=None):
         # Assume that this path set via an environment variable if not explicitly passed in.
         cddp_path = os.getenv('CDDP_PATH')
 
-    datasets = parse_cddp(cddp_path)
+    datasets = parse_cddp(cddp_path, LOGGER)
     LOGGER.info('{} layers scheduled for copying from file GDB'.format(len(datasets)))
 
     # Use a multiprocessing Pool to ingest datasets in parallel.
