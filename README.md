@@ -36,6 +36,10 @@ With the virtualenv activated and env vars defined:
 
 # Docker image
 
-To build a new Docker image from the `Dockerfile`:
+To build a new ingester Docker image from the `Dockerfile`:
 
-    docker image build -t dbcawa/cddp-ingester .
+    docker image build -t dbcawa/cddp-ingester -f Dockerfile.ingester .
+
+To build a new metadata Docker image from the `Dockerfile`:
+
+    docker image build -t dbcawa/cddp-metadata -f Dockerfile.metadata .

@@ -13,3 +13,4 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY metadata.py utils.py gdb_utils.py ./
+CMD ["python", "metadata.py"]
