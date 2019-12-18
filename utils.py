@@ -85,6 +85,16 @@ def publish_layer(workspace, datastore, layer):
     return r
 
 
+def get_layers(workspace):
+    # Query a workspace endpoint, then return a dict of published layers and their URLs.
+    url = '{}/geoserver/rest/workspaces/{}/layers'.format(os.getenv('GEOSERVER_URL'), workspace)
+    r = requests.get(url, auth=get_auth())
+    if not r.status_code == 200:
+        r.raise_for_status()
+    layers_list = r.json()['layers']['layer']
+    return {i['name']: i['href'] for i in layers_list}
+
+
 def get_layer(workspace, layer):
     # Query a published layer endpoint, then return details on that published layer as a dictionary.
     url = '{}/geoserver/rest/workspaces/{}/layers/{}'.format(os.getenv('GEOSERVER_URL'), workspace, layer)
