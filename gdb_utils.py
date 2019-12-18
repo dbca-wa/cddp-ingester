@@ -32,8 +32,19 @@ def get_abstract(metadata):
     return abstract_text
 
 
-def update_abstract(layer_href, abstract):
-    """Update the abstract string for a published layer.
+def get_title(metadata):
+    """For a given XML metadata string, return the title.
+    """
+    root = ET.fromstring(metadata)
+    title_element = root.find('./dataIdInfo/idCitation/resTitle')
+    if title_element is None:
+        return None
+    return title_element.text
+
+
+def get_resource(layer_href, use_https=True):
+    """Get the resource object details for a layer. Returns a tuple of
+    (resource_href, dict).
     """
     # First, get the layer's existing details.
     auth = get_auth()
@@ -43,16 +54,25 @@ def update_abstract(layer_href, abstract):
     d = r.json()
     # Next retrieve the layer's resource URL and get those details.
     # We can infer this URL from the layer name, but let's be cautious.
-    resource_href = d['layer']['resource']['href'].replace('http', 'https')
+    resource_href = d['layer']['resource']['href']
+    if use_https:
+        resource_href = resource_href.replace('http', 'https')
     r = requests.get(resource_href, auth=auth)
-    d = r.json()
     if not r.status_code == 200:
         r.raise_for_status()
-    # Update the abstract, then PUT to the resource URL.
-    d['featureType']['abstract'] = abstract
+    return (resource_href, r.json())
+
+
+def update_resource(layer_href, attr):
+    """Update a layer's resource object using a passed-in dict on the resource attributes and values.
+    """
+    # Get the resource object.
+    resource_href, d = get_resource(layer_href)
+    for key, value in attr.items():
+        d['featureType'][key] = value
     data = json.dumps(d)
     headers = {'content-type': 'application/json'}
-    r = requests.put(resource_href, auth=auth, headers=headers, data=data)
+    r = requests.put(resource_href, auth=get_auth(), headers=headers, data=data)
     if not r.status_code == 200:
         r.raise_for_status()
     return

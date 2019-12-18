@@ -1,7 +1,7 @@
 from multiprocessing import Pool
 import os
 
-from gdb_utils import get_metadata, get_abstract, update_abstract
+from gdb_utils import get_metadata, get_abstract, get_title, update_resource
 from utils import logger_setup, parse_cddp, get_layers
 
 
@@ -15,19 +15,28 @@ def update_metadata(dataset, layers):
     if layer.lower() in layers:
         metadata = get_metadata(gdb_path, layer)
         if metadata:
+            # Get the layer's REST endpoint.
+            layer_href = layers[layer.lower()].replace('http', 'https')
             # Update the published layer's metadata.
             abstract = get_abstract(metadata)
             if abstract:
-                # Get the layer's REST endpoint.
-                layer_href = layers[layer.lower()].replace('http', 'https')
                 try:
-                    update_abstract(layer_href, abstract)
+                    update_resource(layer_href, {'abstract': abstract})
                     LOGGER.info('Updated abstract: {}'.format(layer))
                 except:
                     LOGGER.exception('Error during update of abstract for {}'.format(layer))
             else:
                 LOGGER.warning('No abstract available for {}'.format(layer))
-            # TODO: Update the layer title from metadata.
+            # Update the layer title from metadata.
+            title = get_title(metadata)
+            if title:
+                try:
+                    update_resource(layer_href, {'title': title})
+                    LOGGER.info('Updated title: {}'.format(layer))
+                except:
+                    LOGGER.exception('Error during update of title for {}'.format(layer))
+            else:
+                LOGGER.warning('No title available for {}'.format(layer))
         else:
             LOGGER.warning('No metadata available for {}'.format(layer))
 
