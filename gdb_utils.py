@@ -1,8 +1,11 @@
 from bs4 import BeautifulSoup
+import io
 import json
 import os
 from osgeo import ogr
+from qgis.core import QgsApplication, QgsVectorLayer
 import requests
+import tempfile
 import xml.etree.ElementTree as ET
 
 
@@ -76,3 +79,60 @@ def update_resource(layer_href, attr):
     if not r.status_code == 200:
         r.raise_for_status()
     return
+
+
+def convert_qml(gdb_path, layer, qml_path, logger=None):
+    """Convert a QML style definition into an SLD. Returns the XML string.
+    """
+    # Ensure that the required Qt env var is set.
+    if not os.getenv('QT_QPA_PLATFORM'):
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+
+    # Initialise a QGIS application.
+    QgsApplication.setPrefixPath('/usr', True)
+    qgis = QgsApplication([], False)
+    qgis.initQgis()
+
+    uri = '{}|layername={}'.format(gdb_path, layer)
+    vector_layer = QgsVectorLayer(uri, layer, 'ogr')
+    load_msg, load_success = vector_layer.loadNamedStyle(qml_path)
+    if not load_success:
+        if logger:
+            logger.error('Error loading QML for {}: {}'.format(layer, load_msg))
+        return
+
+    sld_file = tempfile.NamedTemporaryFile(prefix=layer, suffix='.sld', delete=False)
+    write_msg, write_success = vector_layer.saveSldStyle(sld_file.name)
+    if not write_success:
+        if logger:
+            logger.error('Error writing SLD for {}: {}'.format(layer, write_msg))
+        return
+
+    # Define XML namespaces.
+    ns = {
+        'sld': 'http://www.opengis.net/sld',
+        'se': 'http://www.opengis.net/se',
+        'ogc': 'http://www.opengis.net/ogc',
+        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+    }
+    # Parse the SLD.
+    root = ET.fromstring(sld_file.read())
+    # Alter any Name elements where the element value == layer (uppercase).
+    for el in root.findall('.//se:Name', ns):
+        if el.text == layer:
+            el.text = el.text.lower()
+    # Alter any PropertyName element values to lowercase (these are db column names).
+    for el in root.findall('.//ogc:PropertyName', ns):
+        el.text = el.text.lower()
+    # TODO: additional SLD cleansing.
+
+    # Return the XML string.
+    ET.register_namespace('', 'http://www.opengis.net/sld')  # Register default namespace
+    for k, v in ns.items():  # Register remaining namespaces.
+        ET.register_namespace(k, v)
+    # Write a new XML tree to a file, then return the contents.
+    tree = ET.ElementTree(root)
+    f = io.StringIO()
+    tree.write(f, encoding='unicode')
+    f.seek(0)
+    return f.read()

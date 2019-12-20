@@ -1,8 +1,8 @@
 from multiprocessing import Pool
 import os
 
-from gdb_utils import get_metadata, get_abstract, get_title, update_resource
-from utils import logger_setup, parse_cddp, get_layers
+from gdb_utils import get_metadata, get_abstract, get_title, update_resource, convert_qml
+from utils import logger_setup, parse_cddp_qmls, get_layers, create_style, set_layer_style
 
 
 # Configure logging.
@@ -10,9 +10,11 @@ LOGGER = logger_setup()
 
 
 def update_metadata(dataset, layers):
-    gdb_path, layer = dataset
+    gdb_path, layer, qml_path = dataset
+    workspace = os.getenv('GEOSERVER_WORKSPACE')
     # For a given dataset, find out if it is published. If so, parse the metadata from the fGDB.
     if layer.lower() in layers:
+        # Metadata
         metadata = get_metadata(gdb_path, layer)
         if metadata:
             # Get the layer's REST endpoint.
@@ -40,6 +42,20 @@ def update_metadata(dataset, layers):
         else:
             LOGGER.warning('No metadata available for {}'.format(layer))
 
+        # Styles
+        sld_string = convert_qml(gdb_path, layer.lower(), qml_path, LOGGER)
+        r = create_style(workspace, layer.lower(), sld_string)
+        if r.status_code == 201:
+            LOGGER.info('Style created: {}'.format(layer.lower()))
+        elif r.status_code == 200:
+            LOGGER.info('Style updated: {}'.format(layer.lower()))
+        else:
+            LOGGER.warning('Style not changed: {}'.format(layer.lower()))
+        # Set the layer's default style.
+        if r.status_code in [200, 201]:
+            r = set_layer_style(workspace, layer.lower())
+            LOGGER.info('Layer default style updated: {}'.format(layer.lower()))
+
 
 def mp_handler(cddp_path=None):
     """Multiprocessing handler to import metadata from file GDBs in the mounted CDDP volume.
@@ -48,7 +64,7 @@ def mp_handler(cddp_path=None):
         # Assume that this path set via an environment variable if not explicitly passed in.
         cddp_path = os.getenv('CDDP_PATH')
 
-    datasets = parse_cddp(cddp_path, LOGGER)
+    datasets = parse_cddp_qmls(cddp_path, LOGGER)
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     layers = get_layers(workspace)
 

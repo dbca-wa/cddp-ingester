@@ -57,6 +57,23 @@ def parse_cddp(cddp_path, logger=None):
     return datasets
 
 
+def parse_cddp_qmls(cddp_path, logger=None):
+    """This function expects the CDDP filepath to be passed in
+    (e.g. /mnt/GIS-CALM/GIS1-Corporate/Data/GDB), in order to walk the path and locate
+    QML style definitions.
+    Returns a list of tuples containing (fgdb_path, layer, qml_path) triplets.
+    """
+    # First, get fGDB layers.
+    datasets = parse_cddp(cddp_path, logger)
+    qml_paths = []
+    for fgdb_path, layer in datasets:
+        qml_path = os.path.join(os.path.split(fgdb_path)[0], '{}.qml'.format(layer))
+        if os.path.exists(qml_path):
+            qml_paths.append((fgdb_path, layer, qml_path))
+
+    return qml_paths
+
+
 def get_auth():
     return (os.getenv('GEOSERVER_USERNAME'), os.getenv('GEOSERVER_PASSWORD'))
 
@@ -121,6 +138,44 @@ def update_layer(workspace, layer, title=None, abstract=None):
         body['featureType']['abstract'] = abstract
     headers = {'content-type': 'application/json'}
     r = requests.put(resource_href, auth=get_auth(), headers=headers, data=json.dumps(body))
+    if not r.status_code == 200:
+        r.raise_for_status()
+    return r
+
+
+def create_style(workspace, style, sld_string):
+    # First, check if the style already exists.
+    url = '{}/geoserver/rest/workspaces/{}/styles/{}.json'.format(os.getenv('GEOSERVER_URL'), workspace, style)
+    r = requests.get(url, auth=get_auth())
+    if r.status_code == 404:
+        create = True
+        # Create a new style in a workspace from an SLD XML string.
+        url = '{}/geoserver/rest/workspaces/{}/styles'.format(os.getenv('GEOSERVER_URL'), workspace)
+    else:
+        create = False
+        url = '{}/geoserver/rest/workspaces/{}/styles/{}'.format(os.getenv('GEOSERVER_URL'), workspace, style)
+    headers = {'content-type': 'application/vnd.ogc.se+xml', 'accept': 'application/json'}
+    if create:  # Create style.
+        r = requests.post(url, auth=get_auth(), headers=headers, data=sld_string)
+    else:  # Update style.
+        r = requests.put(url, auth=get_auth(), headers=headers, data=sld_string)
+    return r
+
+
+def set_layer_style(workspace, layer):
+    # Assumes that the layer and style have identical names.
+    # First, get the layer details:
+    url = '{}/geoserver/rest/workspaces/{}/layers/{}'.format(os.getenv('GEOSERVER_URL'), workspace, layer)
+    r = requests.get(url, auth=get_auth())
+    if not r.status_code == 200:
+        r.raise_for_status()
+    style_href = '{}/geoserver/rest/workspaces/{}/styles/{}.json'.format(os.getenv('GEOSERVER_URL'), workspace, layer)
+    d = r.json()
+    # Set the layer's default style.
+    d['layer']['defaultStyle'] = {'name': layer, 'href': style_href}
+    headers = {'content-type': 'application/json', 'accept': 'application/json'}
+    # PUT to the layer URL.
+    r = requests.put(url, auth=get_auth(), headers=headers, data=json.dumps(d))
     if not r.status_code == 200:
         r.raise_for_status()
     return r
