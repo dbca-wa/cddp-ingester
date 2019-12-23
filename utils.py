@@ -3,8 +3,10 @@ import json
 import logging
 import os
 import requests
+import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 
 
 # Development environment: define variables in .env
@@ -179,3 +181,66 @@ def set_layer_style(workspace, layer):
     if not r.status_code == 200:
         r.raise_for_status()
     return r
+
+
+def layer_getmap_extent(workspace, layer):
+    """Utility function to download the layer full extent from the WMS endpoint, for monitoring purposes.
+    """
+    # First, obtain the bounding box from the layer resource URL.
+    layer_resp = get_layer(workspace, layer)
+    resource_href = layer_resp['layer']['resource']['href'].replace('http', 'https')
+    resource = requests.get(resource_href, auth=get_auth())
+    if not resource.status_code == 200:
+        resource.raise_for_status()
+    d = resource.json()
+    bbox = d['featureType']['nativeBoundingBox']
+    url = '{}/geoserver/{}/wms'.format(os.getenv('GEOSERVER_URL'), workspace)
+    params = {
+        'request': 'GetMap',
+        'service': 'WMS',
+        'version': '1.1.0',
+        'layers': '{}:{}'.format(workspace, layer),
+        'bbox': '{},{},{},{}'.format(bbox['minx'], bbox['miny'], bbox['maxx'], bbox['maxy']),
+        'format': 'image/jpeg',
+        'width': 256,
+        'height': 256,
+        'srs': d['featureType']['srs'],
+    }
+    r = requests.get(url, params=params)
+    if not resource.status_code == 200:
+        r.raise_for_status()
+    return r
+
+
+def query_wmts(save_tile=False):
+    """Utility function to query WMTS layers and download tiles.
+    """
+    url = '{}/geoserver/gwc/service/wmts'.format(os.getenv('GEOSERVER_URL'))
+    r = requests.get(url, params={'request': 'getcapabilities'})
+    ns = {'wmts': 'http://www.opengis.net/wmts/1.0', 'ows': 'http://www.opengis.net/ows/1.1'}
+    root = ET.fromstring(r.content)
+    layers = root.findall('.//wmts:Layer', ns)
+    for layer in layers:
+        print(layer.find('ows:Identifier', ns).text.split(':')[1])
+        params = {
+            'layer': layer.find('ows:Identifier', ns).text,
+            'style': '',
+            'tilematrixset': layer.find('.//wmts:TileMatrixSet', ns).text,
+            'Service': 'WMTS',
+            'Request': 'GetTile',
+            'Version': '1.0.0',
+            'Format': 'image/jpeg',
+            'TileMatrix': layer.find('.//wmts:TileMatrix', ns).text,
+            'TileCol': layer.find('.//wmts:MaxTileCol', ns).text,
+            'TileRow': layer.find('.//wmts:MaxTileRow', ns).text,
+        }
+        r = requests.get(url, params=params)
+        if r.headers['Content-Type'] == 'image/jpeg':
+            print('OK')
+        else:
+            print('ERROR')
+        if save_tile:
+            filename = '{}.jpg'.format(layer.find('ows:Identifier', ns).text.split(':')[1])
+            with open('tiles/{}'.format(filename), 'wb') as f:
+                r.raw.decode_content = True
+                shutil.copyfileobj(r.raw, f)

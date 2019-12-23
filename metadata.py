@@ -10,6 +10,10 @@ LOGGER = logger_setup()
 
 
 def update_metadata(dataset, layers):
+    """Utility script to update the metadata for all the published layers in a given file GDB.
+    This script also publishes styles for each layer, on the assumption that a compatible QML
+    file named <layer>.qml is present.
+    """
     gdb_path, layer, qml_path = dataset
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     # For a given dataset, find out if it is published. If so, parse the metadata from the fGDB.
