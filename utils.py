@@ -80,8 +80,8 @@ def get_auth():
     return (os.getenv('GEOSERVER_USERNAME'), os.getenv('GEOSERVER_PASSWORD'))
 
 
-def get_available_layers(workspace, datastore):
-    # Query a datastore to get a list of available layers for publishing. Returns a list.
+def get_available_featuretypes(workspace, datastore):
+    # Query a datastore to get a list of available featuretypes for publishing. Returns a list.
     url = '{}/geoserver/rest/workspaces/{}/datastores/{}/featuretypes'.format(
         os.getenv('GEOSERVER_URL'), workspace, datastore)
     headers = {'content-type': 'application/json', 'accept': 'application/json'}
@@ -92,7 +92,7 @@ def get_available_layers(workspace, datastore):
     return r.json()['list']['string']
 
 
-def publish_layer(workspace, datastore, layer):
+def publish_featuretype(workspace, datastore, layer):
     # Publish a layer from a datastore.
     url = '{}/geoserver/rest/workspaces/{}/datastores/{}/featuretypes'.format(
         os.getenv('GEOSERVER_URL'), workspace, datastore)
@@ -100,6 +100,18 @@ def publish_layer(workspace, datastore, layer):
     body = {'featureType': {'name': layer}}
     r = requests.post(url, auth=get_auth(), headers=headers, data=json.dumps(body))
     if not r.status_code == 201:
+        r.raise_for_status()
+    return r
+
+
+def delete_featuretype(workspace, datastore, layer):
+    # Delete a featuretype from a datastore.
+    url = '{}/geoserver/rest/workspaces/{}/datastores/{}/featuretypes/{}'.format(
+        os.getenv('GEOSERVER_URL'), workspace, datastore, layer)
+    headers = {'content-type': 'application/json', 'accept': 'application/json'}
+    params = {'recurse': 'true'}  # Also delete any layers associated with the featuretype.
+    r = requests.get(url, auth=get_auth(), headers=headers, params=params)
+    if not r.status_code == 200:
         r.raise_for_status()
     return r
 
