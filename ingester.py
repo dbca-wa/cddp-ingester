@@ -3,7 +3,7 @@ from multiprocessing import Pool, Value
 import os
 import subprocess
 
-from utils import logger_setup, parse_cddp, get_available_layers, publish_layer
+from utils import logger_setup, parse_cddp, get_available_featuretypes, publish_featuretype
 
 
 # Configure logging.
@@ -87,25 +87,27 @@ def mp_handler(cddp_path=None):
     LOGGER.info('{}/{} layers successfully copied'.format(COUNTER.value, len(datasets)))
 
 
-def publish_layers():
-    """Function to check if any new layers are present and can be published.
+def publish_featuretypes():
+    """Function to check if any new featuretypes are present and can be published.
     """
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     datastore = os.getenv('GEOSERVER_DATASTORE')
     blacklist = ['pg_buffercache', 'pg_stat_statements']  # TODO: don't hardcode this.
-    LOGGER.info('Checking for any new layers to publish')
-    layers = get_available_layers(workspace, datastore)
+    LOGGER.info('Checking for any new feature types to publish')
+    featuretypes = get_available_featuretypes(workspace, datastore)
+    count = 0
 
-    for layer in layers:
-        if layer not in blacklist:
+    for ft in featuretypes:
+        if ft not in blacklist:
             try:
-                publish_layer(workspace, datastore, layer)
-                LOGGER.info('Published layer {}'.format(layer))
+                publish_featuretype(workspace, datastore, ft)
+                LOGGER.info('Published featuretype {}'.format(ft))
+                count += 1
             except:
-                LOGGER.exception('Publish layer failed for {}'.format(layer))
                 continue
 
+    LOGGER.info('{} new featuretypes were published'.format(count))
 
 if __name__ == "__main__":
     mp_handler()
-    publish_layers()
+    publish_featuretypes()
