@@ -1,17 +1,19 @@
 FROM ubuntu:18.04
 MAINTAINER asi@dbca.wa.gov.au
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update
-RUN apt-get install -y software-properties-common
-RUN add-apt-repository ppa:ubuntugis/ppa
-RUN apt-get install -y python-qgis-common python3-pip
-RUN apt-get install -y qgis  # Needs to follow the line above.
-# Set the default Python and pip:
-RUN rm /usr/bin/python && ln -s /usr/bin/python3.6 /usr/bin/python
-RUN ln -s /usr/bin/pip3 /usr/bin/pip
+RUN apt-get update \
+  && apt-get install -y software-properties-common \
+  && add-apt-repository ppa:ubuntugis/ppa \
+  && apt-get install -y python-qgis-common python3-pip \
+  # This needs to follow the line above:
+  && apt-get install -y qgis \
+  && rm -rf /var/lib/apt/lists/* \
+  # Set the default system Python and pip:
+  && rm /usr/bin/python \
+  && ln -s /usr/bin/python3.6 /usr/bin/python \
+  && ln -s /usr/bin/pip3 /usr/bin/pip
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install ipython
 COPY metadata.py utils.py gdb_utils.py ./
 CMD ["python", "metadata.py"]

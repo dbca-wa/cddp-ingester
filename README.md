@@ -36,10 +36,15 @@ With the virtualenv activated and env vars defined:
 
 # Docker image
 
-To build a new ingester Docker image from the `Dockerfile`:
+This project defines a couple of different Dockerfiles that can be run for
+separate purposes (ingesting data, setting metadata, etc.) They each have
+different system packages installed and different run commands. A future
+improvement would be to consolidate them into a single Docker image.
+
+To build a new ingester Docker image from `Dockerfile.ingester`:
 
     docker image build -t dbcawa/cddp-ingester -f Dockerfile.ingester .
 
-To build a new metadata Docker image from the `Dockerfile`:
+To build a new metadata Docker image from `Dockerfile.metadata`:
 
     docker image build -t dbcawa/cddp-metadata -f Dockerfile.metadata .

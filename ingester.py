@@ -45,7 +45,7 @@ def ingest_layer(data):
     # returns 0.
     # Check the stdout content for indicators that the copy failed.
     if b'COPY statement failed' in result and b'type Multi Surface' in result:
-        LOGGER.warning('Copy statement failed, geometry type Multi Surface, trying explicit geom type')
+        LOGGER.warning('Copy statement failed, geometry type Multi Surface, trying explicit geom type MULTIPOLYGON')
         # Manually set the geometry type to MULTIPOLYGON:
         cmd = 'ogr2ogr -overwrite -nlt MULTIPOLYGON -f PostgreSQL PG:"{}" {} {}'.format(
             pg_string, file_gdb, layer_name)
@@ -55,7 +55,7 @@ def ingest_layer(data):
             LOGGER.exception('ogr2ogr step failed for layer {} in {}'.format(layer_name, file_gdb))
             return
     elif b'COPY statement failed' in result and b'type Multi Curve' in result:
-        LOGGER.warning('Copy statement failed, geometry type Multi Curve, trying explicit geom type')
+        LOGGER.warning('Copy statement failed, geometry type Multi Curve, trying explicit geom type MULTILINESTRING')
         # Manually set the geometry type to MULTILINESTRING:
         cmd = 'ogr2ogr -overwrite -nlt MULTILINESTRING -f PostgreSQL PG:"{}" {} {}'.format(
             pg_string, file_gdb, layer_name)
@@ -92,7 +92,7 @@ def publish_featuretypes():
     """
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     datastore = os.getenv('GEOSERVER_DATASTORE')
-    blacklist = ['pg_buffercache', 'pg_stat_statements']  # TODO: don't hardcode this.
+    blacklist = ['pg_buffercache', 'pg_stat_statements']  # TODO: don't hardcode this list of tables.
     LOGGER.info('Checking for any new feature types to publish')
     featuretypes = get_available_featuretypes(workspace, datastore)
     count = 0
