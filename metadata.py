@@ -15,50 +15,51 @@ def update_metadata(dataset, layers):
     file named <layer>.qml is present.
     """
     gdb_path, layer, qml_path = dataset
+    layer_name = layer.lower()
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     # For a given dataset, find out if it is published. If so, parse the metadata from the fGDB.
-    if layer.lower() in layers:
+    if layer_name in layers:
         # Metadata
         metadata = get_metadata(gdb_path, layer)
         if metadata:
             # Get the layer's REST endpoint.
-            layer_href = layers[layer.lower()].replace('http', 'https')
+            layer_href = layers[layer_name].replace('http', 'https')
             # Update the published layer's metadata.
             abstract = get_abstract(metadata)
             if abstract:
                 try:
                     update_resource(layer_href, {'abstract': abstract})
-                    LOGGER.info('Updated abstract: {}'.format(layer))
+                    LOGGER.info('Updated abstract: {}'.format(layer_name))
                 except:
-                    LOGGER.exception('Error during update of abstract for {}'.format(layer))
+                    LOGGER.exception('Error during update of abstract for {}'.format(layer_name))
             else:
-                LOGGER.warning('No abstract available for {}'.format(layer))
+                LOGGER.warning('No abstract available for {}'.format(layer_name))
             # Update the layer title from metadata.
             title = get_title(metadata)
             if title:
                 try:
                     update_resource(layer_href, {'title': title})
-                    LOGGER.info('Updated title: {}'.format(layer))
+                    LOGGER.info('Updated title: {}'.format(layer_name))
                 except:
-                    LOGGER.exception('Error during update of title for {}'.format(layer))
+                    LOGGER.exception('Error during update of title for {}'.format(layer_name))
             else:
-                LOGGER.warning('No title available for {}'.format(layer))
+                LOGGER.warning('No title available for {}'.format(layer_name))
         else:
-            LOGGER.warning('No metadata available for {}'.format(layer))
+            LOGGER.warning('No metadata available for {}'.format(layer_name))
 
         # Styles
-        sld_string = convert_qml(gdb_path, layer.lower(), qml_path, LOGGER)
-        r = create_style(workspace, layer.lower(), sld_string)
-        if r.status_code == 201:
-            LOGGER.info('Style created: {}'.format(layer.lower()))
-        elif r.status_code == 200:
-            LOGGER.info('Style updated: {}'.format(layer.lower()))
+        sld_string = convert_qml(gdb_path, layer_name, qml_path, LOGGER)
+        r = create_style(workspace, layer_name, sld_string)
+        if r.status_code == 200:
+            LOGGER.info('Style created: {}'.format(layer_name))
+        elif r.status_code == 201:
+            LOGGER.info('Style updated: {}'.format(layer_name))
         else:
-            LOGGER.warning('Style not changed: {}'.format(layer.lower()))
+            LOGGER.warning('Style not changed: {}'.format(layer_name))
         # Set the layer's default style.
         if r.status_code in [200, 201]:
-            r = set_layer_style(workspace, layer.lower())
-            LOGGER.info('Layer default style updated: {}'.format(layer.lower()))
+            r = set_layer_style(workspace, layer_name)
+            LOGGER.info('Layer default style updated: {}'.format(layer_name))
 
 
 def mp_handler(cddp_path=None):
@@ -71,6 +72,7 @@ def mp_handler(cddp_path=None):
     datasets = parse_cddp_qmls(cddp_path, LOGGER)
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     layers = get_layers(workspace)
+    LOGGER.info('{} datasets scheduled for metadata & style updates'.format(len(datasets)))
 
     # Use a multiprocessing Pool to update layer metadata in parallel.
     p = Pool(processes=4)
