@@ -87,8 +87,9 @@ def mp_handler(cddp_path=None):
     LOGGER.info('{}/{} layers successfully copied'.format(COUNTER.value, len(datasets)))
 
 
-def publish_featuretypes():
+def publish_featuretypes(blacklist=[]):
     """Function to check if any new featuretypes are present and can be published.
+    The blacklist is an optional list of strings of table names to not publish.
     """
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     datastore = os.getenv('GEOSERVER_DATASTORE')
@@ -98,7 +99,7 @@ def publish_featuretypes():
     count = 0
 
     for ft in featuretypes:
-        if ft not in blacklist:
+        if not ft.startswith('pg_') and ft not in blacklist:  # Skip any Postgres system tables, and blacklisted ones.
             try:
                 publish_featuretype(workspace, datastore, ft)
                 LOGGER.info('Published featuretype {}'.format(ft))
@@ -107,6 +108,7 @@ def publish_featuretypes():
                 continue
 
     LOGGER.info('{} new featuretypes were published'.format(count))
+
 
 if __name__ == "__main__":
     mp_handler()

@@ -43,8 +43,8 @@ improvement would be to consolidate them into a single Docker image.
 
 To build a new ingester Docker image from `Dockerfile.ingester`:
 
-    docker image build -t dbcawa/cddp-ingester -f Dockerfile.ingester .
+    docker image build -t ghcr.io/dbca-wa/cddp-ingester -f Dockerfile.ingester .
 
 To build a new metadata Docker image from `Dockerfile.metadata`:
 
-    docker image build -t dbcawa/cddp-metadata -f Dockerfile.metadata .
+    docker image build -t ghcr.io/dbca-wa/cddp-metadata -f Dockerfile.metadata .

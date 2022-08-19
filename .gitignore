@@ -3,3 +3,4 @@ venv/
 .coverage
 *.pyc
 *.sw[o-p]
+.python-version

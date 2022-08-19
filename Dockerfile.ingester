@@ -1,5 +1,6 @@
-FROM python:3.7-slim-buster
+FROM python:3.9.12-slim-bullseye
 MAINTAINER asi@dbca.wa.gov.au
+LABEL org.opencontainers.image.source https://github.com/dbca-wa/cddp-ingester
 RUN apt-get update -y \
   && apt-get upgrade -y \
   && apt-get install --no-install-recommends -y gdal-bin proj-bin \
