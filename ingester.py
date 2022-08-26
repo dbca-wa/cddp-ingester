@@ -93,7 +93,6 @@ def publish_featuretypes(blacklist=[]):
     """
     workspace = os.getenv('GEOSERVER_WORKSPACE')
     datastore = os.getenv('GEOSERVER_DATASTORE')
-    blacklist = ['pg_buffercache', 'pg_stat_statements']  # TODO: don't hardcode this list of tables.
     LOGGER.info('Checking for any new feature types to publish')
     featuretypes = get_available_featuretypes(workspace, datastore)
     count = 0
