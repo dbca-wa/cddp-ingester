@@ -58,7 +58,7 @@ def get_resource(layer_href, use_https=True):
     # Next retrieve the layer's resource URL and get those details.
     # We can infer this URL from the layer name, but let's be cautious.
     resource_href = d['layer']['resource']['href']
-    if use_https:
+    if use_https and not resource_href.startswith('https'):
         resource_href = resource_href.replace('http', 'https')
     r = requests.get(resource_href, auth=auth)
     if not r.status_code == 200:

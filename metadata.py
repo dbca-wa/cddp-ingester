@@ -23,7 +23,7 @@ def update_metadata(dataset, layers):
         metadata = get_metadata(gdb_path, layer)
         if metadata:
             # Get the layer's REST endpoint.
-            layer_href = layers[layer_name].replace('http', 'https')
+            layer_href = layers[layer_name]
             # Update the published layer's metadata.
             abstract = get_abstract(metadata)
             if abstract:
