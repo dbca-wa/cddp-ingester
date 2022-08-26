@@ -19,8 +19,8 @@ containing the following:
 
     CDDP_PATH="/path/to/cddp/data/GDB"
     DATABASE_HOST="database.hostname"
-    DATABASE_USERNAME="database@username"
-    DATABASE_PASSWORD="password"
+    DATABASE_USERNAME="db_username"
+    DATABASE_PASSWORD="db_password"
     DATABASE_NAME="database_name"
     GEOSERVER_URL="https://geoserver.url"
     GEOSERVER_USERNAME="username"

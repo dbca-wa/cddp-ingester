@@ -1,17 +1,26 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04 as builder_base
 MAINTAINER asi@dbca.wa.gov.au
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update \
-  && apt-get install -y software-properties-common \
-  && add-apt-repository ppa:ubuntugis/ppa \
-  && apt-get install -y python-qgis-common python3-pip \
-  # This needs to follow the line above:
-  && apt-get install -y qgis \
-  && rm -rf /var/lib/apt/lists/* \
-  # Set the default system Python and pip:
-  && rm /usr/bin/python \
-  && ln -s /usr/bin/python3.6 /usr/bin/python \
-  && ln -s /usr/bin/pip3 /usr/bin/pip
+ENV TZ=Australia/Perth
+
+# Install the bases and upgrade the system
+RUN \
+  sed -i 's/# \(.*multiverse$\)/\1/g' /etc/apt/sources.list && \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get install -y tzdata keyboard-configuration build-essential gnupg software-properties-common ca-certificates apt-utils wget
+
+# Install preliminary files
+RUN \
+  wget -qO - https://qgis.org/downloads/qgis-2021.gpg.key | gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/qgis-archive.gpg --import && \
+  chmod a+r /etc/apt/trusted.gpg.d/qgis-archive.gpg && \
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys D155B8E6A419C5BE && \
+  add-apt-repository -s 'deb https://qgis.org/ubuntu/ focal main' && \
+  apt-get update && \
+  apt-get install -y python3-pip python3-qgis qgis qgis-plugin-grass && \
+  ln -s /usr/bin/python3.8 /usr/bin/python && \
+  rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
